@@ -1,0 +1,113 @@
+{
+  "common": {
+    "name": "presence-control",
+    "version": "0.1.0",
+    "titleLang": {
+      "en": "Presence Control",
+      "de": "Presence Control"
+    },
+    "desc": {
+      "en": "Controls lights and consumers based on presence and vacation states and integrates with shuttercontrol.",
+      "de": "Steuert Licht und Verbraucher abhängig von Anwesenheit und Urlaub und bindet shuttercontrol ein."
+    },
+    "authors": ["Tobias Schu"],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "mode": "daemon",
+    "icon": "presence-control.svg",
+    "enabled": true,
+    "extIcon": "https://raw.githubusercontent.com/ToSchu41/ioBroker.presence-control/main/admin/presence-control.svg",
+    "readme": "https://github.com/ToSchu41/ioBroker.presence-control/blob/main/README.md",
+    "loglevel": "info",
+    "connectionType": "local",
+    "dataSource": "poll",
+    "compact": true,
+    "materialize": true,
+    "adminUI": {"config": "json"},
+    "dependencies": [{"js-controller": ">=5.0.0"}],
+    "globalDependencies": [{"admin": ">=6.0.0"}]
+  },
+  "native": {
+    "enabled": true,
+    "residentsAnyoneHomeId": "",
+    "residentsLongAbsentId": "",
+    "homeDelaySec": 10,
+    "awayDelaySec": 180,
+    "unknownAfterMin": 60,
+    "shutterEnabled": true,
+    "shutterHolidayId": "shuttercontrol.0.control.Holiday",
+    "shutterAutoAllId": "shuttercontrol.0.control.autoAll",
+    "shutterOpenLivingId": "shuttercontrol.0.control.openLiving",
+    "shutterCloseLivingId": "shuttercontrol.0.control.closeLiving",
+    "shutterOpenChildrenId": "shuttercontrol.0.control.openChildren",
+    "shutterCloseChildrenId": "shuttercontrol.0.control.closeChildren",
+    "shutterOpenSleepId": "shuttercontrol.0.control.openSleep",
+    "shutterCloseSleepId": "shuttercontrol.0.control.closeSleep",
+    "sunElevationId": "shuttercontrol.0.info.Elevation",
+    "sunAzimuthId": "shuttercontrol.0.info.Azimut",
+    "sunriseId": "shuttercontrol.0.info.Sunrise",
+    "sunsetId": "shuttercontrol.0.info.Sunset",
+    "goldenHourId": "shuttercontrol.0.info.GoldenHour",
+    "goldenHourEndId": "shuttercontrol.0.info.GoldenHourEnd",
+    "brightnessId": "",
+    "darkLux": 30,
+    "brightLux": 60,
+    "darkElevation": -3,
+    "brightElevation": 0,
+    "lightSourceMode": "brightnessFallbackSun",
+    "simulationEnabled": true,
+    "simulationOnlyVacation": true,
+    "actions": [
+      {
+        "enabled": false,
+        "name": "BEISPIEL 1 – Flurlicht bei Rückkehr und Dunkelheit",
+        "trigger": "home",
+        "targetId": "0_userdata.0.presence-control.example.flurLight",
+        "value": "true",
+        "valueType": "boolean",
+        "onlyDark": true,
+        "delaySec": 0,
+        "offAfterSec": 300
+      },
+      {
+        "enabled": false,
+        "name": "BEISPIEL 2 – Standby-Verbraucher bei Abwesenheit ausschalten",
+        "trigger": "away",
+        "targetId": "0_userdata.0.presence-control.example.consumer",
+        "value": "false",
+        "valueType": "boolean",
+        "onlyDark": false,
+        "delaySec": 30,
+        "offAfterSec": 0
+      }
+    ],
+    "simulationEntries": [
+      {
+        "enabled": false,
+        "name": "BEISPIEL – Wohnzimmerlicht",
+        "kind": "light",
+        "targetId": "0_userdata.0.presence-control.example.livingLight",
+        "start": "18:30",
+        "end": "22:30",
+        "minDurationMin": 20,
+        "maxDurationMin": 75,
+        "probability": 80,
+        "onlyDark": true
+      },
+      {
+        "enabled": false,
+        "name": "BEISPIEL – Wohnbereich-Rollos schließen",
+        "kind": "button",
+        "targetId": "shuttercontrol.0.control.closeLiving",
+        "start": "20:00",
+        "end": "22:00",
+        "minDurationMin": 0,
+        "maxDurationMin": 0,
+        "probability": 90,
+        "onlyDark": true
+      }
+    ]
+  },
+  "objects": [],
+  "instanceObjects": []
+}
