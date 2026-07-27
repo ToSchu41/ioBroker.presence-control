@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "presence-control",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "titleLang": {
       "en": "Presence Control",
       "de": "Presence Control"
@@ -10,7 +10,9 @@
       "en": "Controls lights and consumers based on presence and vacation states and integrates with shuttercontrol.",
       "de": "Steuert Licht und Verbraucher abhängig von Anwesenheit und Urlaub und bindet shuttercontrol ein."
     },
-    "authors": ["Tobias Schu"],
+    "authors": [
+      "Tobias Schu"
+    ],
     "license": "MIT",
     "platform": "Javascript/Node.js",
     "mode": "daemon",
@@ -23,9 +25,19 @@
     "dataSource": "poll",
     "compact": true,
     "materialize": true,
-    "adminUI": {"config": "json"},
-    "dependencies": [{"js-controller": ">=5.0.0"}],
-    "globalDependencies": [{"admin": ">=6.0.0"}]
+    "adminUI": {
+      "config": "json"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.0"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=6.0.0"
+      }
+    ]
   },
   "native": {
     "enabled": true,
@@ -105,6 +117,71 @@
         "maxDurationMin": 0,
         "probability": 90,
         "onlyDark": true
+      }
+    ],
+    "modeNameHome": "Home",
+    "modeNameAway": "Away",
+    "modeNameVacation": "Urlaub",
+    "modeNameUnknown": "Unbekannt",
+    "telegramEnabled": false,
+    "telegramInstance": "telegram.0",
+    "telegramUser": "",
+    "telegramNotifyOnStartup": false,
+    "telegramNotifyHome": true,
+    "telegramNotifyAway": true,
+    "telegramNotifyVacation": true,
+    "telegramNotifyUnknown": true,
+    "telegramTextHome": "🏠 Gebäudemodus: {mode}.",
+    "telegramTextAway": "🚪 Gebäudemodus: {mode}.",
+    "telegramTextVacation": "🏖️ Gebäudemodus: {mode}.",
+    "telegramTextUnknown": "⚠️ Gebäudemodus: {mode}.",
+    "shutterOpenAllId": "shuttercontrol.0.control.openAll",
+    "shutterCloseAllId": "shuttercontrol.0.control.closeAll",
+    "shutterModeActions": [
+      {
+        "enabled": true,
+        "name": "Bei Home: Holiday deaktivieren",
+        "mode": "home",
+        "action": "holidayOff",
+        "customTargetId": "",
+        "delaySec": 0,
+        "onlyDark": false
+      },
+      {
+        "enabled": true,
+        "name": "Bei Home: Automatik aktivieren",
+        "mode": "home",
+        "action": "autoAll",
+        "customTargetId": "",
+        "delaySec": 5,
+        "onlyDark": false
+      },
+      {
+        "enabled": false,
+        "name": "BEISPIEL – Bei Away Wohnbereich schließen",
+        "mode": "away",
+        "action": "closeLiving",
+        "customTargetId": "",
+        "delaySec": 600,
+        "onlyDark": true
+      },
+      {
+        "enabled": true,
+        "name": "Bei Vacation: Holiday aktivieren",
+        "mode": "vacation",
+        "action": "holidayOn",
+        "customTargetId": "",
+        "delaySec": 0,
+        "onlyDark": false
+      },
+      {
+        "enabled": false,
+        "name": "BEISPIEL – Bei Unknown keine sichere Fahraktion",
+        "mode": "unknown",
+        "action": "customButton",
+        "customTargetId": "",
+        "delaySec": 0,
+        "onlyDark": false
       }
     ]
   },

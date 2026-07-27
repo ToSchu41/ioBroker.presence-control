@@ -1,13 +1,22 @@
 {
   "name": "iobroker.presence-control",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Presence, absence, vacation and simple presence simulation for ioBroker",
   "author": "Tobias Schu",
   "homepage": "https://github.com/ToSchu41/ioBroker.presence-control",
   "license": "MIT",
-  "keywords": ["iobroker", "presence", "residents", "shuttercontrol", "vacation", "simulation"],
+  "keywords": [
+    "iobroker",
+    "presence",
+    "residents",
+    "shuttercontrol",
+    "vacation",
+    "simulation"
+  ],
   "main": "main.js",
-  "engines": {"node": ">=18"},
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "test": "node --check main.js",
     "lint": "node --check main.js"

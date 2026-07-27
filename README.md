@@ -1,29 +1,54 @@
 # ioBroker.presence-control
 
-Erster funktionsfähiger Entwurf für eine zentrale Anwesenheitssteuerung in ioBroker.
+Presence Control verbindet den ioBroker-Adapter `residents` mit frei konfigurierbaren Aktionen für Licht, Verbraucher, Telegram und `shuttercontrol`.
 
-## Funktionen in Version 0.1.0
+## Funktionen in Version 0.2.0
 
-- Auswertung eines frei wählbaren Residents-Datenpunkts für „jemand zuhause“
-- separater Residents-Datenpunkt für „länger abwesend / Urlaub“
-- Modi `home`, `away`, `vacation` und `unknown`
-- Verzögerung beim Verlassen und bei Rückkehr
-- automatische Synchronisation von `shuttercontrol.0.control.Holiday`
-- Auslösen von `shuttercontrol.0.control.autoAll` bei Rückkehr
-- vorausgewählte Shuttercontrol-Schnittstellen für Wohnen, Kinder und Schlafen
+- Gebäudemodi `home`, `away`, `vacation` und `unknown`
+- frei wählbare Anzeigenamen für alle vier Modi
+- Auswertung von „jemand zuhause“ und „länger abwesend“ aus `residents`
+- Verzögerungen für Rückkehr und Abwesenheit
+- Überwachung auf veraltete Residents-Daten
+- Telegram-Benachrichtigungen bei bestätigten Moduswechseln
+- frei wählbare Nachrichtentexte pro Modus
+- Platzhalter `{mode}`, `{previousMode}`, `{date}` und `{time}`
+- überarbeitete Shuttercontrol-Konfiguration mit eindeutigem Auslöser, Aktion und Verzögerung
+- Modusaktionen für Home, Away, Vacation und Unknown
 - Sonnenstand aus `shuttercontrol.0.info.*`
-- optionaler Lux-Sensor mit Sonnenstand als Ersatz
-- frei konfigurierbare Aktionen für Zuhause, Abwesenheit und Urlaub
-- einfache zufällige Anwesenheitssimulation
-- Lichtsimulation mit zufälliger Laufzeit
-- Shuttercontrol-Buttons als Simulations-Trigger
-- zwei deaktivierte Einrichtungsbeispiele in der Admin-Konfiguration
+- optionaler Helligkeitssensor
+- frei konfigurierbare Aktionen für Licht und Verbraucher
+- einfache Anwesenheitssimulation für Licht und Shuttercontrol-Buttons
+- deaktivierte Einrichtungsbeispiele in der Admin-Oberfläche
 
-## Vorausgewählte Shuttercontrol-Datenpunkte
+## Shuttercontrol: klare Ausführung
+
+Jede Shuttercontrol-Regel enthält:
+
+- Aktiv/Deaktiviert
+- verständliche Beschreibung
+- Gebäudemodus, bei dessen bestätigtem Wechsel die Regel ausgeführt wird
+- konkrete Aktion
+- optionale Verzögerung in Sekunden
+- optionale Bedingung „nur bei Dunkelheit“
+
+Beispiel:
+
+```text
+Bei Wechsel zu: Away
+Aktion: Wohnbereich schließen
+Verzögerung: 600 Sekunden
+Nur dunkel: Ja
+```
+
+Damit wird `shuttercontrol.0.control.closeLiving` zehn Minuten nach dem bestätigten Wechsel zu `away` ausgelöst, sofern Presence Control zu diesem Zeitpunkt Dunkelheit erkannt hat.
+
+### Vorausgewählte Schnittstellen
 
 ```text
 shuttercontrol.0.control.Holiday
 shuttercontrol.0.control.autoAll
+shuttercontrol.0.control.openAll
+shuttercontrol.0.control.closeAll
 shuttercontrol.0.control.openLiving
 shuttercontrol.0.control.closeLiving
 shuttercontrol.0.control.openChildren
@@ -39,39 +64,51 @@ shuttercontrol.0.info.Sunrise
 shuttercontrol.0.info.Sunset
 ```
 
-Die Datenpunkte lassen sich vollständig ändern, falls eine andere Shuttercontrol-Instanz genutzt wird.
+### Voreingestellte Regeln
 
-## Beispiele in der Admin-Oberfläche
+- bei `home`: Holiday deaktivieren
+- bei `home`: nach fünf Sekunden `autoAll` auslösen
+- bei `vacation`: Holiday aktivieren
+- Beispiel bei `away`: Wohnbereich nach zehn Minuten und nur bei Dunkelheit schließen; standardmäßig deaktiviert
+- bei `unknown`: standardmäßig keine Fahraktion
 
-### Beispiel 1: Flurlicht bei Rückkehr
+Presence Control bildet keine Sturm-, Gewitter-, Frost-, Fenster-, Beschattungs- oder Fahrlogik nach. Diese Funktionen bleiben vollständig in `shuttercontrol`.
 
-- Auslöser: `Zuhause`
-- nur bei Dunkelheit
-- Licht einschalten
-- nach 300 Sekunden wieder ausschalten
+## Telegram
 
-### Beispiel 2: Standby-Verbraucher ausschalten
+Telegram ist standardmäßig deaktiviert. Nach der Aktivierung wird die gewünschte Instanz, beispielsweise `telegram.0`, eingetragen.
 
-- Auslöser: `Abwesend`
-- 30 Sekunden Verzögerung
-- Zielwert `false`
+Für jeden Modus kann separat festgelegt werden:
 
-Beide Beispiele sind zunächst deaktiviert. Die Beispiel-Datenpunkte müssen durch reale Datenpunkte ersetzt werden.
+- Benachrichtigung aktiv oder inaktiv
+- vollständig frei wählbarer Text
+
+Beispiel:
+
+```text
+🏠 Gebäudemodus geändert: {previousMode} → {mode}
+Zeitpunkt: {date}, {time}
+```
+
+Standardmäßig wird beim Adapterstart keine Nachricht versendet. Diese Funktion kann in der Admin-Konfiguration aktiviert werden.
+
+## Einrichtungsbeispiele
+
+In der Admin-Oberfläche sind unter „Licht und Verbraucher“ zwei deaktivierte Beispiele enthalten:
+
+1. Flurlicht bei Rückkehr und Dunkelheit einschalten und nach 300 Sekunden ausschalten.
+2. Standby-Verbraucher 30 Sekunden nach dem Wechsel zu Away ausschalten.
+
+Unter „Anwesenheitssimulation“ sind ebenfalls deaktivierte Beispiele für ein Wohnzimmerlicht und einen Shuttercontrol-Button enthalten.
 
 ## Installation aus GitHub
-
-Nach dem Hochladen in ein eigenes GitHub-Repository kann der Adapter über die Experteninstallation installiert werden:
 
 ```bash
 iobroker url https://github.com/ToSchu41/ioBroker.presence-control --host <IOBROKER-HOST>
 ```
 
-Anschließend eine Instanz anlegen und zuerst die beiden Residents-Datenpunkte auswählen.
+Danach eine Instanz anlegen und zuerst die Residents-Datenpunkte prüfen.
 
-## Wichtige Abgrenzung
+## Hinweis
 
-Presence Control ersetzt keine Rollladensteuerung. Sturm, Gewitter, Frost, Fensterkontakte, Beschattung und Fahrlogik bleiben vollständig im Adapter `shuttercontrol`. Presence Control synchronisiert nur den Holiday-Schalter und löst vorhandene Control-Buttons aus.
-
-## Status des Entwurfs
-
-Dies ist eine erste Entwicklungsfassung. Vor einem produktiven Einsatz sollten die Residents-Datenpunkte geprüft und die Beispielaktionen deaktiviert beziehungsweise angepasst werden.
+Version 0.2.0 ist eine Entwicklungsfassung. Vor dem produktiven Einsatz sollten alle Ziel-Datenpunkte und insbesondere reale Rollladenbefehle sorgfältig getestet werden.
