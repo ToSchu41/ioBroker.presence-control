@@ -11,6 +11,9 @@ class PresenceControl extends utils.Adapter {
         this.pendingModeTimer = null;
         this.actionTimers = new Set();
         this.simulationTimers = new Set();
+        this.simulationOffTimers = new Set();
+        this.simulationPlans = new Map();
+        this.simulationStopped = false;
         this.lastResidentsUpdate = 0;
         this.on('ready', this.onReady.bind(this));
         this.on('stateChange', this.onStateChange.bind(this));
@@ -18,6 +21,7 @@ class PresenceControl extends utils.Adapter {
     }
 
     async onReady() {
+        await this.migrateActions();
         await this.createObjects();
         await this.setStateAsync('info.connection', true, true);
         const override = await this.getStateAsync('control.overrideMode');
@@ -26,7 +30,24 @@ class PresenceControl extends utils.Adapter {
         await this.evaluateAll();
         this.scheduleDailySimulation();
         this.healthTimer = setInterval(() => this.checkSourceHealth(), 60_000);
-        this.dailyTimer = setInterval(() => this.scheduleDailySimulation(), 60 * 60 * 1000);
+        this.dailyTimer = setInterval(() => this.scheduleDailySimulation(), 60_000);
+    }
+
+    async migrateActions() {
+        let changed = false;
+        const modes = ['home', 'away', 'vacation', 'unknown'];
+        const actions = (this.config.actions || []).map(action => {
+            if (modes.some(mode => Object.hasOwn(action, 'on' + mode))) return action;
+            changed = true;
+            const migrated = { ...action };
+            for (const mode of modes) migrated['on' + mode] = action.trigger === mode;
+            delete migrated.trigger;
+            return migrated;
+        });
+        if (changed) {
+            await this.extendForeignObjectAsync('system.adapter.' + this.namespace, { native: { actions } });
+            this.config.actions = actions;
+        }
     }
 
     async createObjects() {
@@ -73,7 +94,7 @@ class PresenceControl extends utils.Adapter {
             if (localId === 'control.triggerAway') await this.requestMode('away', 0);
             if (localId === 'control.triggerVacation') await this.requestMode('vacation', 0);
             if (localId === 'control.triggerUnknown') await this.requestMode('unknown', 0);
-            if (localId === 'control.stopSimulation') this.clearSimulationTimers();
+            if (localId === 'control.stopSimulation') { this.simulationStopped = true; this.clearSimulationTimers(); }
             if (localId === 'control.overrideMode') await this.evaluatePresence();
             await this.setStateAsync(localId, state.val, true);
             return;
@@ -110,8 +131,9 @@ class PresenceControl extends utils.Adapter {
     }
 
     async requestMode(newMode, delaySec) {
-        if (newMode === this.mode && this.initialModeApplied) return;
         if (this.pendingModeTimer) clearTimeout(this.pendingModeTimer);
+        this.pendingModeTimer = null;
+        if (newMode === this.mode && this.initialModeApplied) return;
         this.pendingModeTimer = setTimeout(async () => {
             this.pendingModeTimer = null;
             await this.applyMode(newMode);
@@ -126,7 +148,8 @@ class PresenceControl extends utils.Adapter {
         await this.setStateAsync('state.mode', newMode, true);
         this.log.info(`Gebäudemodus: ${oldMode} -> ${newMode}${isStartup ? ' (Start)' : ''}`);
 
-        if (newMode === 'home') this.clearSimulationTimers();
+        this.simulationStopped = false;
+        if (!['away', 'vacation'].includes(newMode)) this.clearSimulationTimers();
         if (this.config.shutterEnabled) await this.runShutterActions(newMode);
         await this.runActions(newMode);
         await this.sendModeNotification(newMode, oldMode, isStartup);
@@ -143,6 +166,8 @@ class PresenceControl extends utils.Adapter {
             const targetId = this.resolveShutterTarget(action.action, action.customTargetId);
             if (!targetId) continue;
             const timer = setTimeout(async () => {
+                this.actionTimers.delete(timer);
+                if (this.mode !== mode || (action.onlyDark && this.lightState !== 'dark')) return;
                 try {
                     if (action.action === 'holidayOn') await this.setForeignStateAsync(targetId, true, false);
                     else if (action.action === 'holidayOff') await this.setForeignStateAsync(targetId, false, false);
@@ -219,18 +244,19 @@ class PresenceControl extends utils.Adapter {
     async evaluateLight() {
         const brightness = this.config.brightnessId ? await this.getForeignStateAsync(this.config.brightnessId) : null;
         const elevation = this.config.sunElevationId ? await this.getForeignStateAsync(this.config.sunElevationId) : null;
-        const lux = Number(brightness?.val);
-        const elev = Number(elevation?.val);
+        const lux = this.sensorNumber(brightness);
+        const elev = this.sensorNumber(elevation);
         let dark;
         const mode = this.config.lightSourceMode || 'brightnessFallbackSun';
         if (mode === 'brightness' && Number.isFinite(lux)) dark = this.applyHysteresis(lux, this.config.darkLux, this.config.brightLux);
         else if (mode === 'sun' && Number.isFinite(elev)) dark = this.applyHysteresis(elev, this.config.darkElevation, this.config.brightElevation);
-        else if (mode === 'both' && Number.isFinite(lux) && Number.isFinite(elev)) dark = lux <= Number(this.config.darkLux) && elev <= Number(this.config.darkElevation);
-        else if (Number.isFinite(lux)) dark = this.applyHysteresis(lux, this.config.darkLux, this.config.brightLux);
-        else if (Number.isFinite(elev)) dark = this.applyHysteresis(elev, this.config.darkElevation, this.config.brightElevation);
+        else if (mode === 'both' && Number.isFinite(lux) && Number.isFinite(elev)) dark = this.applyHysteresis(lux, this.config.darkLux, this.config.brightLux) && this.applyHysteresis(elev, this.config.darkElevation, this.config.brightElevation);
+        else if (mode === 'brightnessFallbackSun' && Number.isFinite(lux)) dark = this.applyHysteresis(lux, this.config.darkLux, this.config.brightLux);
+        else if (mode === 'brightnessFallbackSun' && Number.isFinite(elev)) dark = this.applyHysteresis(elev, this.config.darkElevation, this.config.brightElevation);
         this.lightState = dark === undefined ? 'unknown' : dark ? 'dark' : 'bright';
         await this.setStateAsync('state.isDark', dark === true, true);
         await this.setStateAsync('state.lightState', this.lightState, true);
+        await this.evaluateSensorSimulation(lux, elev);
     }
 
     applyHysteresis(value, darkLimit, brightLimit) {
@@ -241,15 +267,20 @@ class PresenceControl extends utils.Adapter {
 
     async runActions(trigger) {
         for (const action of this.config.actions || []) {
-            if (!action.enabled || action.trigger !== trigger || !action.targetId) continue;
+            if (!action.enabled || !this.actionMatchesMode(action, trigger) || !action.targetId) continue;
             if (action.onlyDark && this.lightState !== 'dark') continue;
             const timer = setTimeout(async () => {
+                this.actionTimers.delete(timer);
+                if (this.mode !== trigger || (action.onlyDark && this.lightState !== 'dark')) return;
                 try {
                     const value = this.parseValue(action.value, action.valueType);
                     await this.setForeignStateAsync(action.targetId, value, false);
                     await this.setStateAsync('info.lastAction', `${action.name}: ${action.targetId} = ${String(value)}`, true);
                     if (Number(action.offAfterSec) > 0 && action.valueType === 'boolean' && value === true) {
-                        const offTimer = setTimeout(() => this.setForeignState(action.targetId, false, false), Number(action.offAfterSec) * 1000);
+                        const offTimer = setTimeout(() => {
+                            this.actionTimers.delete(offTimer);
+                            this.setForeignState(action.targetId, false, false);
+                        }, Number(action.offAfterSec) * 1000);
                         this.actionTimers.add(offTimer);
                     }
                 } catch (error) {
@@ -260,27 +291,80 @@ class PresenceControl extends utils.Adapter {
         }
     }
 
+    actionMatchesMode(action, mode) {
+        const modes = ['home', 'away', 'vacation', 'unknown'];
+        if (modes.some(key => Object.hasOwn(action, 'on' + key))) return action['on' + mode] === true;
+        return action.trigger === mode;
+    }
+
+    sensorNumber(state) {
+        if (!state || state.val === null || state.val === undefined || typeof state.val === 'boolean' || String(state.val).trim() === '' || state.q) return NaN;
+        return Number(state.val);
+    }
+
+    simulationAllowed() {
+        return this.config.enabled && this.config.simulationEnabled && !this.simulationStopped &&
+            (this.config.simulationOnlyVacation ? this.mode === 'vacation' : ['away', 'vacation'].includes(this.mode));
+    }
+
     scheduleDailySimulation() {
-        this.clearSimulationTimers();
-        if (!this.config.simulationEnabled) return;
-        if (this.config.simulationOnlyVacation && this.mode !== 'vacation') return;
-        if (!this.config.simulationOnlyVacation && !['away', 'vacation'].includes(this.mode)) return;
+        if (!this.simulationAllowed()) { this.clearSimulationTimers(); return; }
         const now = new Date();
-        for (const entry of this.config.simulationEntries || []) {
-            if (!entry.enabled || !entry.targetId || Math.random() * 100 > Number(entry.probability ?? 100)) continue;
+        const day = now.toDateString();
+        if (this.simulationDay !== day) {
+            this.clearSimulationTimers();
+            this.simulationDay = day;
+            this.simulationPlans.clear();
+        }
+        (this.config.simulationEntries || []).forEach((entry, index) => {
+            if (!entry.enabled || !entry.targetId || this.simulationPlans.has(index)) return;
+            const plan = { entry, done: false, runAt: null, selected: Math.random() * 100 < Math.max(0, Math.min(100, Number(entry.probability ?? 100))) };
+            this.simulationPlans.set(index, plan);
+            if (!plan.selected || (entry.triggerType && entry.triggerType !== 'time')) return;
             const start = this.timeToday(entry.start, now);
             const end = this.timeToday(entry.end, now);
-            if (!start || !end || end <= start) continue;
-            const runAt = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-            if (runAt <= now) continue;
-            const timer = setTimeout(() => this.executeSimulationEntry(entry), runAt.getTime() - now.getTime());
+            if (!start || !end || end <= start || end <= now) { plan.done = true; return; }
+            const earliest = Math.max(start.getTime(), now.getTime());
+            plan.runAt = new Date(earliest + Math.random() * (end.getTime() - earliest));
+            const timer = setTimeout(async () => {
+                this.simulationTimers.delete(timer);
+                plan.done = true;
+                await this.executeSimulationEntry(entry);
+                this.updateSimulationStatus();
+            }, plan.runAt.getTime() - now.getTime());
             this.simulationTimers.add(timer);
-            this.setState('info.nextSimulationAction', `${entry.name}: ${runAt.toLocaleString('de-DE')}`, true);
+        });
+        this.updateSimulationStatus();
+        this.evaluateSensorSimulation().catch(error => this.log.warn(error.message));
+    }
+
+    async evaluateSensorSimulation(lux, elevation) {
+        if (!this.simulationAllowed()) return;
+        if (lux === undefined) lux = this.config.brightnessId ? this.sensorNumber(await this.getForeignStateAsync(this.config.brightnessId)) : NaN;
+        if (elevation === undefined) elevation = this.config.sunElevationId ? this.sensorNumber(await this.getForeignStateAsync(this.config.sunElevationId)) : NaN;
+        for (const plan of this.simulationPlans.values()) {
+            const entry = plan.entry;
+            if (!plan.selected || plan.done || !['brightness', 'sun'].includes(entry.triggerType)) continue;
+            const value = entry.triggerType === 'brightness' ? lux : elevation;
+            const threshold = this.sensorNumber({ val: entry.threshold });
+            if (!Number.isFinite(value) || !Number.isFinite(threshold)) continue;
+            if (entry.onlyDark && this.lightState !== 'dark') continue;
+            if (entry.comparison === 'above' ? value < threshold : value > threshold) continue;
+            plan.done = true;
+            await this.executeSimulationEntry(entry);
         }
-        this.setState('state.simulationActive', this.simulationTimers.size > 0, true);
+        this.updateSimulationStatus();
+    }
+
+    updateSimulationStatus() {
+        const pending = [...this.simulationPlans.values()].filter(plan => plan.selected && !plan.done);
+        const timed = pending.filter(plan => plan.runAt).sort((a, b) => a.runAt - b.runAt);
+        this.setState('state.simulationActive', this.simulationAllowed() && (pending.length > 0 || this.simulationOffTimers.size > 0), true);
+        this.setState('info.nextSimulationAction', timed.length ? timed[0].entry.name + ': ' + timed[0].runAt.toLocaleString('de-DE') : pending.length ? 'Warte auf Sonnenstand/Helligkeit' : '', true);
     }
 
     async executeSimulationEntry(entry) {
+        if (!this.simulationAllowed()) return;
         if (entry.onlyDark && this.lightState !== 'dark') return;
         try {
             if (entry.kind === 'button') await this.triggerButton(entry.targetId);
@@ -289,8 +373,12 @@ class PresenceControl extends utils.Adapter {
                 const min = Math.max(0, Number(entry.minDurationMin) || 0);
                 const max = Math.max(min, Number(entry.maxDurationMin) || min);
                 const duration = min + Math.random() * (max - min);
-                const offTimer = setTimeout(() => this.setForeignState(entry.targetId, false, false), duration * 60_000);
-                this.simulationTimers.add(offTimer);
+                const offTimer = setTimeout(() => {
+                    this.simulationOffTimers.delete(offTimer);
+                    this.setForeignState(entry.targetId, false, false);
+                    this.updateSimulationStatus();
+                }, duration * 60_000);
+                this.simulationOffTimers.add(offTimer);
             }
             await this.setStateAsync('info.lastAction', `Simulation: ${entry.name}`, true);
         } catch (error) {
@@ -313,13 +401,15 @@ class PresenceControl extends utils.Adapter {
     clearSimulationTimers() {
         for (const timer of this.simulationTimers) clearTimeout(timer);
         this.simulationTimers.clear();
+        // Cancel today's queued time actions without drawing a new daily plan on return.
+        for (const plan of this.simulationPlans.values()) if (plan.runAt) plan.done = true;
         this.setState('state.simulationActive', false, true);
         this.setState('info.nextSimulationAction', '', true);
     }
 
     timeToday(value, base) {
         const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || ''));
-        if (!match) return null;
+        if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) return null;
         const date = new Date(base);
         date.setHours(Number(match[1]), Number(match[2]), 0, 0);
         return date;
@@ -343,6 +433,7 @@ class PresenceControl extends utils.Adapter {
             if (this.healthTimer) clearInterval(this.healthTimer);
             if (this.dailyTimer) clearInterval(this.dailyTimer);
             for (const timer of this.actionTimers) clearTimeout(timer);
+            for (const timer of this.simulationOffTimers) clearTimeout(timer);
             this.clearSimulationTimers();
             this.setState('info.connection', false, true);
             callback();

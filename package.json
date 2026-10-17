@@ -1,6 +1,6 @@
 {
   "name": "iobroker.presence-control",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Presence, absence, vacation and simple presence simulation for ioBroker",
   "author": "Tobias Schu",
   "homepage": "https://github.com/ToSchu41/ioBroker.presence-control",
@@ -18,7 +18,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --check main.js",
+    "test": "node --check main.js && node --test test/*.test.js",
     "lint": "node --check main.js"
   },
   "dependencies": {

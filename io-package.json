@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "presence-control",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "titleLang": {
       "en": "Presence Control",
       "de": "Presence Control"
@@ -73,24 +73,30 @@
       {
         "enabled": false,
         "name": "BEISPIEL 1 – Flurlicht bei Rückkehr und Dunkelheit",
-        "trigger": "home",
         "targetId": "0_userdata.0.presence-control.example.flurLight",
         "value": "true",
         "valueType": "boolean",
         "onlyDark": true,
         "delaySec": 0,
-        "offAfterSec": 300
+        "offAfterSec": 300,
+        "onhome": true,
+        "onaway": false,
+        "onvacation": false,
+        "onunknown": false
       },
       {
         "enabled": false,
         "name": "BEISPIEL 2 – Standby-Verbraucher bei Abwesenheit ausschalten",
-        "trigger": "away",
         "targetId": "0_userdata.0.presence-control.example.consumer",
         "value": "false",
         "valueType": "boolean",
         "onlyDark": false,
         "delaySec": 30,
-        "offAfterSec": 0
+        "offAfterSec": 0,
+        "onhome": false,
+        "onaway": true,
+        "onvacation": true,
+        "onunknown": false
       }
     ],
     "simulationEntries": [
@@ -104,7 +110,10 @@
         "minDurationMin": 20,
         "maxDurationMin": 75,
         "probability": 80,
-        "onlyDark": true
+        "onlyDark": true,
+        "triggerType": "time",
+        "comparison": "below",
+        "threshold": 0
       },
       {
         "enabled": false,
@@ -116,7 +125,10 @@
         "minDurationMin": 0,
         "maxDurationMin": 0,
         "probability": 90,
-        "onlyDark": true
+        "onlyDark": true,
+        "triggerType": "time",
+        "comparison": "below",
+        "threshold": 0
       }
     ],
     "modeNameHome": "Home",

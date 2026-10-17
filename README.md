@@ -2,7 +2,21 @@
 
 Presence Control verbindet den ioBroker-Adapter `residents` mit frei konfigurierbaren Aktionen für Licht, Verbraucher, Telegram und `shuttercontrol`.
 
-## Funktionen in Version 0.2.0
+## Neu in Version 0.3.0
+
+- Im Tab **Licht und Verbraucher** ersetzen vier Checkboxen das Modus-Dropdown: Zuhause, Abwesend, Urlaub und Unbekannt. Eine Regel kann für mehrere Modi gelten. Alte Regeln werden beim ersten Adapterstart automatisch übernommen; vor dem Bearbeiten einmal starten und die Admin-Seite neu laden.
+- In der **Anwesenheitssimulation** gibt es pro Zeile einen Auslöser: Zeitfenster, Sonnenhöhe oder Helligkeit (Lux). Für Sensorregeln Vergleich und Schwellwert einstellen; Von/Bis wird dabei ignoriert. Die Datenpunkte werden im Tab **Sonnenstand und Helligkeit** festgelegt.
+- Beispiel: Wohnzimmerlicht mit Auslöser „Sonnenhöhe“, Vergleich „Kleiner/gleich“, Schwellwert `-3`, Wahrscheinlichkeit `100` und Leuchtdauer `20–75` Minuten. Alternativ „Helligkeit (Lux)“ mit Schwellwert `30`. „Nur dunkel“ ist eine zusätzliche Bedingung nach der globalen Lichtauswertung.
+- Sensorregeln laufen höchstens einmal pro lokalem Kalendertag während Abwesenheit bzw. Urlaub. Eine bereits erfüllte Bedingung wird auch beim Start oder Moduswechsel ausgewertet. Die Wahrscheinlichkeit wird einmal pro Tag gezogen. Beim Adapterneustart beginnt diese Planung neu.
+- Zeitregeln behalten ihre zufällige Planung bei der regelmäßigen Prüfung. Beim Einstieg in ein laufendes Zeitfenster wird aus dessen Restzeit gewählt. Zeitfenster müssen innerhalb eines Tages liegen (z. B. `18:30–22:30`).
+- Ausschalt-Timer bleiben bei Tageswechsel, Rückkehr und „Simulation stoppen“ erhalten. Neue Einschaltaktionen werden gestoppt; der nächste Moduswechsel gibt die Simulation wieder frei. Ausstehende Zeitaktionen eines abgebrochenen Tagesplans werden an diesem Tag nicht erneut geplant. Beim Adapterneustart werden Timer nicht wiederhergestellt.
+- Verzögerte Verbraucher- und Shuttercontrol-Aktionen prüfen Modus und Dunkelheit bei der Ausführung erneut. Eine Rückkehr bricht einen noch ausstehenden Abwesenheitswechsel ab. Ungültige Sensorwerte werden nicht als Null gewertet; die Einstellungen „Nur Helligkeitssensor“ und „Nur Sonnenstand“ verwenden ausschließlich ihre jeweilige Quelle.
+
+### Prüfung
+
+`npm test` prüft die JavaScript-Syntax und führt Regressionstests mit nachgebildeten ioBroker-Schnittstellen aus. Alternativ: `node --check main.js` und `node --test test/adapter.test.js`. Ein Integrationstest mit laufendem ioBroker und eine visuelle Prüfung im ioBroker-Admin stehen noch aus.
+
+## Funktionen
 
 - Gebäudemodi `home`, `away`, `vacation` und `unknown`
 - frei wählbare Anzeigenamen für alle vier Modi
@@ -111,4 +125,4 @@ Danach eine Instanz anlegen und zuerst die Residents-Datenpunkte prüfen.
 
 ## Hinweis
 
-Version 0.2.0 ist eine Entwicklungsfassung. Vor dem produktiven Einsatz sollten alle Ziel-Datenpunkte und insbesondere reale Rollladenbefehle sorgfältig getestet werden.
+Version 0.3.0 ist eine Entwicklungsfassung. Vor dem produktiven Einsatz sollten alle Ziel-Datenpunkte und insbesondere reale Rollladenbefehle sorgfältig getestet werden.
