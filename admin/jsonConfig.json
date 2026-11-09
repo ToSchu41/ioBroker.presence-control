@@ -145,18 +145,18 @@
               "type": "checkbox",
               "attr": "enabled",
               "title": "Aktiv",
-              "width": "5%"
+              "width": "4%"
             },
             {
               "type": "text",
               "attr": "name",
               "title": "Beschreibung",
-              "width": "15%"
+              "width": "14%"
             },
             {
               "type": "select",
               "attr": "mode",
-              "title": "Ausführen bei Wechsel zu",
+              "title": "Wechsel zu",
               "options": [
                 {
                   "label": "Home",
@@ -175,7 +175,7 @@
                   "value": "unknown"
                 }
               ],
-              "width": "12%"
+              "width": "9%"
             },
             {
               "type": "select",
@@ -231,56 +231,56 @@
                   "value": "customButton"
                 }
               ],
-              "width": "20%"
+              "width": "15%"
             },
             {
               "type": "objectId",
               "attr": "customTargetId",
-              "title": "Eigener Button (nur bei eigener Aktion)",
-              "width": "15%"
+              "title": "Eigener Button",
+              "width": "12%"
             },
             {
               "type": "number",
               "attr": "delaySec",
-              "title": "Verzögerung s",
+              "title": "Verz. (s)",
               "min": 0,
-              "width": "8%"
+              "width": "5%"
             },
             {
               "type": "checkbox",
               "attr": "whenDark",
               "title": "Dunkel",
+              "width": "5%"
+            },
+            {
+              "type": "text",
+              "attr": "darkFrom",
+              "title": "Dunkel von",
+              "width": "6%"
+            },
+            {
+              "type": "text",
+              "attr": "darkUntil",
+              "title": "Dunkel bis",
               "width": "6%"
             },
             {
               "type": "checkbox",
               "attr": "whenBright",
               "title": "Hell",
-              "width": "6%"
-            },
-            {
-              "type": "text",
-              "attr": "darkFrom",
-              "title": "Dunkel von",
-              "width": "8%"
-            },
-            {
-              "type": "text",
-              "attr": "darkUntil",
-              "title": "Dunkel bis",
-              "width": "8%"
+              "width": "5%"
             },
             {
               "type": "text",
               "attr": "brightFrom",
               "title": "Hell von",
-              "width": "8%"
+              "width": "6%"
             },
             {
               "type": "text",
               "attr": "brightUntil",
               "title": "Hell bis",
-              "width": "8%"
+              "width": "6%"
             }
           ]
         },
