@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function adapter(config = {}) {
+function adapter(config = {}, DateClass = Date) {
     const timers = new Map();
     let next = 0;
     class Adapter {
@@ -23,7 +23,7 @@ function adapter(config = {}) {
         async extendForeignObjectAsync(id, value) { this.migration = value; }
     }
     const context = {
-        require: () => ({ Adapter }), module: { parent: true }, Date, Math, console,
+        require: () => ({ Adapter }), module: { parent: true }, Date: DateClass, Math, console,
         setTimeout(fn, delay) { const id = ++next; timers.set(id, { fn, delay }); return id; },
         clearTimeout(id) { timers.delete(id); }
     };
@@ -117,4 +117,48 @@ test('delayed consumer action checks current mode before writing', async () => {
     a.mode = 'away'; await a.runActions('away'); a.mode = 'home';
     await [...a.timers.values()][0].fn();
     assert.equal(a.writes.length, 0);
+});
+
+test('migration preserves unrestricted and dark-only behavior in both tabs', async () => {
+    const a = adapter({ actions: [{ onhome: true, onlyDark: false }], shutterModeActions: [{ onlyDark: true }, { whenDark: false, whenBright: false }] });
+    await a.migrateActions();
+    assert.equal(a.migration.native.actions[0].whenBright, true);
+    assert.equal(a.migration.native.shutterModeActions[0].whenBright, false);
+    assert.equal(a.config.shutterModeActions[1].whenDark, false);
+    a.migration = undefined;
+    await a.migrateActions();
+    assert.equal(a.migration, undefined);
+});
+
+test('consumer rules support bright, dark, unrestricted and no selection', async () => {
+    const actions = [
+        { targetId: 'bright', whenBright: true }, { targetId: 'dark', whenDark: true },
+        { targetId: 'always', whenBright: true, whenDark: true }, { targetId: 'never', whenDark: false, whenBright: false }
+    ].map(rule => ({ enabled: true, onaway: true, value: 'true', valueType: 'boolean', ...rule }));
+    for (const [light, expected] of [['bright', ['bright', 'always']], ['dark', ['dark', 'always']], ['unknown', ['always']]]) {
+        const a = adapter({ actions });
+        a.mode = 'away'; a.lightState = light;
+        await a.runActions('away');
+        for (const timer of a.timers.values()) await timer.fn();
+        assert.deepEqual(a.writes.map(([target]) => target), expected);
+    }
+});
+
+test('shutter rules use the matching light window and recheck its end after delay', async () => {
+    let time = new Date(2026, 10, 9, 5, 59);
+    class TestDate extends Date { constructor() { super(time); } }
+    const action = { enabled: true, mode: 'away', action: 'customButton', customTargetId: 'shutter', whenDark: true, whenBright: true, darkFrom: '18:00', darkUntil: '06:00', brightFrom: '07:00', brightUntil: '18:00' };
+    const a = adapter({ shutterModeActions: [action] }, TestDate);
+    a.mode = 'away'; a.lightState = 'dark';
+    assert.equal(a.matchesActionLight(action, new Date(2026, 10, 8, 18, 0)), true);
+    await a.runShutterActions('away');
+    assert.equal(a.timers.size, 1);
+    time = new Date(2026, 10, 9, 6, 0);
+    await [...a.timers.values()][0].fn();
+    assert.equal(a.writes.length, 0);
+    assert.equal(a.matchesActionLight(action, new Date(2026, 10, 9, 7, 0)), false);
+    a.lightState = 'bright';
+    assert.equal(a.matchesActionLight(action, new Date(2026, 10, 9, 7, 0)), true);
+    assert.equal(a.matchesActionLight(action, new Date(2026, 10, 9, 18, 0)), false);
+    assert.equal(a.matchesActionLight({ ...action, brightUntil: '' }, time), false);
 });

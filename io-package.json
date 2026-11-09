@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "presence-control",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "titleLang": {
       "en": "Presence Control",
       "de": "Presence Control"
@@ -76,13 +76,14 @@
         "targetId": "0_userdata.0.presence-control.example.flurLight",
         "value": "true",
         "valueType": "boolean",
-        "onlyDark": true,
         "delaySec": 0,
         "offAfterSec": 300,
         "onhome": true,
         "onaway": false,
         "onvacation": false,
-        "onunknown": false
+        "onunknown": false,
+        "whenDark": true,
+        "whenBright": false
       },
       {
         "enabled": false,
@@ -90,13 +91,14 @@
         "targetId": "0_userdata.0.presence-control.example.consumer",
         "value": "false",
         "valueType": "boolean",
-        "onlyDark": false,
         "delaySec": 30,
         "offAfterSec": 0,
         "onhome": false,
         "onaway": true,
         "onvacation": true,
-        "onunknown": false
+        "onunknown": false,
+        "whenDark": true,
+        "whenBright": true
       }
     ],
     "simulationEntries": [
@@ -157,7 +159,8 @@
         "action": "holidayOff",
         "customTargetId": "",
         "delaySec": 0,
-        "onlyDark": false
+        "whenDark": true,
+        "whenBright": true
       },
       {
         "enabled": true,
@@ -166,7 +169,8 @@
         "action": "autoAll",
         "customTargetId": "",
         "delaySec": 5,
-        "onlyDark": false
+        "whenDark": true,
+        "whenBright": true
       },
       {
         "enabled": false,
@@ -175,7 +179,10 @@
         "action": "closeLiving",
         "customTargetId": "",
         "delaySec": 600,
-        "onlyDark": true
+        "whenDark": true,
+        "whenBright": false,
+        "darkFrom": "18:00",
+        "darkUntil": "06:00"
       },
       {
         "enabled": true,
@@ -184,7 +191,8 @@
         "action": "holidayOn",
         "customTargetId": "",
         "delaySec": 0,
-        "onlyDark": false
+        "whenDark": true,
+        "whenBright": true
       },
       {
         "enabled": false,
@@ -193,7 +201,8 @@
         "action": "customButton",
         "customTargetId": "",
         "delaySec": 0,
-        "onlyDark": false
+        "whenDark": true,
+        "whenBright": true
       }
     ]
   },

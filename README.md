@@ -2,6 +2,13 @@
 
 Presence Control verbindet den ioBroker-Adapter `residents` mit frei konfigurierbaren Aktionen für Licht, Verbraucher, Telegram und `shuttercontrol`.
 
+## Neu in Version 0.3.1
+
+- **Licht und Verbraucher:** Mit „Dunkel“ oder „Hell“ gilt die entsprechende Lichtbedingung. Beide Häkchen bedeuten unabhängig vom Lichtzustand, auch bei unbekanntem Licht. Ohne Häkchen wird die Regel nicht ausgeführt.
+- **Shuttercontrol:** Für Dunkel und Hell kann je ein eigenes Fenster in Ortszeit des ioBroker-Servers eingestellt werden. Beispiel: „Dunkel“ von `18:00` bis `06:00` erlaubt die Aktion abends und am Folgemorgen bis vor 06:00. „Hell“ von `07:00` bis `18:00` erlaubt sie nur tagsüber bei hellem Licht. Bei beiden Häkchen gilt das Fenster des aktuellen Lichtzustands. Bei unbekanntem Licht wird die Regel nur mit beiden Häkchen und ohne Zeitfenster freigegeben.
+- Zwei leere Zeitfelder bedeuten ganztägig. Bei unvollständigen, ungültigen oder gleichen Uhrzeiten wird das betreffende Fenster nicht freigegeben. Das Fenster löst selbst keine Aktion aus; es wird beim Moduswechsel und nach einer Verzögerung geprüft.
+- Bestehende „Nur dunkel“-Regeln werden beim ersten Start auf „Dunkel“ umgestellt. Bisher unbeschränkte Regeln erhalten beide Häkchen. Bestehende Shuttercontrol-Regeln erhalten kein Zeitfenster; begrenze sie bei Bedarf in der Admin-Oberfläche. Die Simulation behält ihre eigene „Dunkel“-Checkbox.
+
 ## Neu in Version 0.3.0
 
 - Im Tab **Licht und Verbraucher** ersetzen vier Checkboxen das Modus-Dropdown: Zuhause, Abwesend, Urlaub und Unbekannt. Eine Regel kann für mehrere Modi gelten. Alte Regeln werden beim ersten Adapterstart automatisch übernommen; vor dem Bearbeiten einmal starten und die Admin-Seite neu laden.
@@ -43,7 +50,7 @@ Jede Shuttercontrol-Regel enthält:
 - Gebäudemodus, bei dessen bestätigtem Wechsel die Regel ausgeführt wird
 - konkrete Aktion
 - optionale Verzögerung in Sekunden
-- optionale Bedingung „nur bei Dunkelheit“
+- Lichtbedingung „Dunkel“ und/oder „Hell“, jeweils mit optionalem Zeitfenster
 
 Beispiel:
 
@@ -51,10 +58,11 @@ Beispiel:
 Bei Wechsel zu: Away
 Aktion: Wohnbereich schließen
 Verzögerung: 600 Sekunden
-Nur dunkel: Ja
+Dunkel: Ja, 18:00–06:00
+Hell: Nein
 ```
 
-Damit wird `shuttercontrol.0.control.closeLiving` zehn Minuten nach dem bestätigten Wechsel zu `away` ausgelöst, sofern Presence Control zu diesem Zeitpunkt Dunkelheit erkannt hat.
+Damit wird `shuttercontrol.0.control.closeLiving` zehn Minuten nach dem bestätigten Wechsel zu `away` ausgelöst, wenn beim Wechsel und beim Ausführen Dunkelheit erkannt wird und beide Zeitpunkte im Nachtfenster liegen.
 
 ### Vorausgewählte Schnittstellen
 
@@ -125,4 +133,4 @@ Danach eine Instanz anlegen und zuerst die Residents-Datenpunkte prüfen.
 
 ## Hinweis
 
-Version 0.3.0 ist eine Entwicklungsfassung. Vor dem produktiven Einsatz sollten alle Ziel-Datenpunkte und insbesondere reale Rollladenbefehle sorgfältig getestet werden.
+Vor dem produktiven Einsatz sollten alle Ziel-Datenpunkte und insbesondere reale Rollladenbefehle sorgfältig getestet werden.

@@ -133,7 +133,7 @@
         },
         "shutterActionsInfo": {
           "type": "staticText",
-          "text": "Modusaktionen – jede Zeile wird einmal nach dem bestätigten Wechsel zum ausgewählten Modus ausgeführt. Die Verzögerung beginnt erst nach dem Moduswechsel. 'Nur dunkel' prüft den von Presence Control ermittelten Lichtzustand.",
+          "text": "Die Regel startet beim bestätigten Moduswechsel. Wähle Dunkel, Hell oder beides und trage je nach Bedarf Von/Bis in HH:MM ein. Leere Zeitfelder bedeuten ganztägig; wenn ein Feld befüllt ist, sind beide Zeiten erforderlich. Bei beiden Häkchen gilt das Fenster zum aktuellen Lichtzustand. Ohne Häkchen läuft die Regel nicht.",
           "newLine": true
         },
         "shutterModeActions": {
@@ -151,7 +151,7 @@
               "type": "text",
               "attr": "name",
               "title": "Beschreibung",
-              "width": "24%"
+              "width": "15%"
             },
             {
               "type": "select",
@@ -237,7 +237,7 @@
               "type": "objectId",
               "attr": "customTargetId",
               "title": "Eigener Button (nur bei eigener Aktion)",
-              "width": "24%"
+              "width": "15%"
             },
             {
               "type": "number",
@@ -248,15 +248,45 @@
             },
             {
               "type": "checkbox",
-              "attr": "onlyDark",
-              "title": "Nur dunkel",
-              "width": "7%"
+              "attr": "whenDark",
+              "title": "Dunkel",
+              "width": "6%"
+            },
+            {
+              "type": "checkbox",
+              "attr": "whenBright",
+              "title": "Hell",
+              "width": "6%"
+            },
+            {
+              "type": "text",
+              "attr": "darkFrom",
+              "title": "Dunkel von",
+              "width": "8%"
+            },
+            {
+              "type": "text",
+              "attr": "darkUntil",
+              "title": "Dunkel bis",
+              "width": "8%"
+            },
+            {
+              "type": "text",
+              "attr": "brightFrom",
+              "title": "Hell von",
+              "width": "8%"
+            },
+            {
+              "type": "text",
+              "attr": "brightUntil",
+              "title": "Hell bis",
+              "width": "8%"
             }
           ]
         },
         "shutterExampleInfo": {
           "type": "staticText",
-          "text": "Beispiel: 'Away + Wohnen schließen + 600 s + Nur dunkel' bedeutet: zehn Minuten nach dem bestätigten Wechsel zu Away wird closeLiving ausgelöst, aber nur wenn es dann dunkel ist. Bei Unknown ist standardmäßig keine Fahraktion aktiv.",
+          "text": "Beispiel: Abwesend + Wohnen schließen + Dunkel von 18:00 bis 06:00. Das Fenster reicht über Mitternacht; ab 06:00 bleibt die Aktion aus. Licht und Zeit werden beim Moduswechsel und nach der Verzögerung geprüft. Ein Fenster allein löst keine Aktion aus.",
           "newLine": true
         }
       }
@@ -360,7 +390,7 @@
       "items": {
         "actionHelp": {
           "type": "staticText",
-          "text": "Jede Regel gilt für alle angehakten Modi und läuft einmal beim bestätigten Wechsel. Verzögerte Aktionen prüfen Modus und Dunkelheit erneut. Bestehende Regeln werden beim Adapterstart übernommen.",
+          "text": "Eine Regel gilt für alle angehakten Modi. Nur Dunkel oder nur Hell prüft den Lichtzustand. Beide Häkchen führen die Aktion unabhängig vom Licht aus; ohne Häkchen läuft die Regel nicht. Die Bedingung wird beim Moduswechsel und nach der Verzögerung geprüft.",
           "newLine": true
         },
         "actions": {
@@ -438,9 +468,15 @@
             },
             {
               "type": "checkbox",
-              "attr": "onlyDark",
-              "title": "Nur dunkel",
-              "width": "7%"
+              "attr": "whenDark",
+              "title": "Dunkel",
+              "width": "6%"
+            },
+            {
+              "type": "checkbox",
+              "attr": "whenBright",
+              "title": "Hell",
+              "width": "6%"
             },
             {
               "type": "number",

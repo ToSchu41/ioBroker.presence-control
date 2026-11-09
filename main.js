@@ -34,19 +34,31 @@ class PresenceControl extends utils.Adapter {
     }
 
     async migrateActions() {
-        let changed = false;
         const modes = ['home', 'away', 'vacation', 'unknown'];
-        const actions = (this.config.actions || []).map(action => {
-            if (modes.some(mode => Object.hasOwn(action, 'on' + mode))) return action;
-            changed = true;
-            const migrated = { ...action };
-            for (const mode of modes) migrated['on' + mode] = action.trigger === mode;
-            delete migrated.trigger;
-            return migrated;
-        });
-        if (changed) {
-            await this.extendForeignObjectAsync('system.adapter.' + this.namespace, { native: { actions } });
-            this.config.actions = actions;
+        const native = {};
+        for (const key of ['actions', 'shutterModeActions']) {
+            const actions = this.config[key] || [];
+            const migrated = actions.map(action => {
+                const legacyMode = key === 'actions' && !modes.some(mode => Object.hasOwn(action, 'on' + mode));
+                const legacyLight = !Object.hasOwn(action, 'whenDark') && !Object.hasOwn(action, 'whenBright');
+                if (!legacyMode && !legacyLight) return action;
+                const row = { ...action };
+                if (legacyMode) {
+                    for (const mode of modes) row['on' + mode] = action.trigger === mode;
+                    delete row.trigger;
+                }
+                if (legacyLight) {
+                    row.whenDark = true;
+                    row.whenBright = !action.onlyDark;
+                    delete row.onlyDark;
+                }
+                return row;
+            });
+            if (migrated.some((row, index) => row !== actions[index])) native[key] = migrated;
+        }
+        if (Object.keys(native).length) {
+            await this.extendForeignObjectAsync('system.adapter.' + this.namespace, { native });
+            Object.assign(this.config, native);
         }
     }
 
@@ -159,15 +171,15 @@ class PresenceControl extends utils.Adapter {
     async runShutterActions(mode) {
         for (const action of this.config.shutterModeActions || []) {
             if (!action.enabled || action.mode !== mode) continue;
-            if (action.onlyDark && this.lightState !== 'dark') {
-                this.log.debug(`Shuttercontrol-Aktion '${action.name}' übersprungen: nicht dunkel`);
+            if (!this.matchesActionLight(action, new Date())) {
+                this.log.debug(`Shuttercontrol-Aktion '${action.name}' übersprungen: Lichtbedingung oder Zeitfenster nicht erfüllt`);
                 continue;
             }
             const targetId = this.resolveShutterTarget(action.action, action.customTargetId);
             if (!targetId) continue;
             const timer = setTimeout(async () => {
                 this.actionTimers.delete(timer);
-                if (this.mode !== mode || (action.onlyDark && this.lightState !== 'dark')) return;
+                if (this.mode !== mode || !this.matchesActionLight(action, new Date())) return;
                 try {
                     if (action.action === 'holidayOn') await this.setForeignStateAsync(targetId, true, false);
                     else if (action.action === 'holidayOff') await this.setForeignStateAsync(targetId, false, false);
@@ -268,10 +280,10 @@ class PresenceControl extends utils.Adapter {
     async runActions(trigger) {
         for (const action of this.config.actions || []) {
             if (!action.enabled || !this.actionMatchesMode(action, trigger) || !action.targetId) continue;
-            if (action.onlyDark && this.lightState !== 'dark') continue;
+            if (!this.matchesActionLight(action)) continue;
             const timer = setTimeout(async () => {
                 this.actionTimers.delete(timer);
-                if (this.mode !== trigger || (action.onlyDark && this.lightState !== 'dark')) return;
+                if (this.mode !== trigger || !this.matchesActionLight(action)) return;
                 try {
                     const value = this.parseValue(action.value, action.valueType);
                     await this.setForeignStateAsync(action.targetId, value, false);
@@ -295,6 +307,28 @@ class PresenceControl extends utils.Adapter {
         const modes = ['home', 'away', 'vacation', 'unknown'];
         if (modes.some(key => Object.hasOwn(action, 'on' + key))) return action['on' + mode] === true;
         return action.trigger === mode;
+    }
+
+    matchesActionLight(action, now) {
+        const legacy = !Object.hasOwn(action, 'whenDark') && !Object.hasOwn(action, 'whenBright');
+        const dark = legacy || action.whenDark === true;
+        const bright = legacy ? !action.onlyDark : action.whenBright === true;
+        if (!now && dark && bright) return true;
+        if (this.lightState === 'dark') return dark && (!now || this.inActionWindow(now, action.darkFrom, action.darkUntil));
+        if (this.lightState === 'bright') return bright && (!now || this.inActionWindow(now, action.brightFrom, action.brightUntil));
+        return dark && bright && ![action.darkFrom, action.darkUntil, action.brightFrom, action.brightUntil]
+            .some(value => String(value ?? '').trim());
+    }
+
+    inActionWindow(now, from, until) {
+        const startText = String(from ?? '').trim();
+        const endText = String(until ?? '').trim();
+        if (!startText && !endText) return true;
+        const start = this.clockMinutes(startText);
+        const end = this.clockMinutes(endText);
+        if (start === null || end === null || start === end) return false;
+        const minute = now.getHours() * 60 + now.getMinutes();
+        return start < end ? minute >= start && minute < end : minute >= start || minute < end;
     }
 
     sensorNumber(state) {
@@ -408,11 +442,17 @@ class PresenceControl extends utils.Adapter {
     }
 
     timeToday(value, base) {
+        const minute = this.clockMinutes(value);
+        if (minute === null) return null;
+        const date = new Date(base);
+        date.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
+        return date;
+    }
+
+    clockMinutes(value) {
         const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || ''));
         if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) return null;
-        const date = new Date(base);
-        date.setHours(Number(match[1]), Number(match[2]), 0, 0);
-        return date;
+        return Number(match[1]) * 60 + Number(match[2]);
     }
 
     parseValue(value, type) {
